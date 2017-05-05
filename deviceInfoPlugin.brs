@@ -45,8 +45,6 @@ Function deviceInfoPlugin_Initialize(msgPort As Object, userVariables As Object,
 	
 	'----- Get Token
 	
-	' GetToken(deviceInfoPlugin)
-	
 	deviceInfoPlugin.tokenTimer.SetPort(deviceInfoPlugin.msgPort)
 	
 	deviceInfoPlugin.tokenTimer.SetUserData("GET_TOKEN")
@@ -90,6 +88,7 @@ Function deviceInfoPlugin_ProcessEvent(event as Object)
 	end if
 	
 	m.timer.Start()
+	m.tokenTimer.Start()
 	
 	return retval
 	
@@ -171,6 +170,7 @@ Function GetToken(h as Object)
 		jsonObj = ParseJson(responseBody)
 		
 		h.tokenExpire = jsonObj.expires_in
+		h.tokenTimer.SetElapsed(jsonObj.expires_in, 0)
 		h.token = jsonObj.token_type + " " + jsonObj.access_token
 	else
 		print "@deviceInfoPlugin  Token Not Granted! Response : "; reason
