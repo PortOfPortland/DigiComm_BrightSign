@@ -139,7 +139,7 @@ Function GetToken(h as Object)
 
     aa = {}
 	aa.method = "POST"
-	aa.request_body_string =  "grant_type=password&username=sabin.maharjan@portofportland.com&password=QV4f!@1882"
+	aa.request_body_string =  "grant_type=password&username=&password="
 	aa.response_body_string = true
 
     ok = xfer.AsyncMethod(aa)
