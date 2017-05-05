@@ -16,9 +16,12 @@ Function deviceInfoPlugin_Initialize(msgPort As Object, userVariables As Object,
     deviceInfoPlugin.bsp = bsp
     deviceInfoPlugin.ProcessEvent = deviceInfoPlugin_ProcessEvent
 	deviceInfoPlugin.timer = CreateObject("roTimer")
+	deviceInfoPlugin.tokenTimer = CreateObject("roTimer")
     deviceInfoPlugin.reg = CreateObject("roRegistrySection", "networking")
     deviceInfoPlugin.uploadTimerInSeconds = 60
-
+	deviceInfoPlugin.tokenExpire = 1
+	deviceInfoPlugin.token = "bearer "
+	
     '----- Get user Variable for debug (if any)
 	
     if userVariables["Enable_Telnet"] <> invalid
@@ -39,6 +42,19 @@ Function deviceInfoPlugin_Initialize(msgPort As Object, userVariables As Object,
         deviceInfoPlugin.uploadTimerInSeconds = userVarelapsedTimeInSeconds$.toint()
         print "@deviceInfoPlugin Upload Timer Set To "; deviceInfoPlugin.uploadTimerInSeconds; " Seconds"
     end if
+	
+	'----- Get Token
+	
+	' GetToken(deviceInfoPlugin)
+	
+	deviceInfoPlugin.tokenTimer.SetPort(deviceInfoPlugin.msgPort)
+	
+	deviceInfoPlugin.tokenTimer.SetUserData("GET_TOKEN")
+	
+	deviceInfoPlugin.tokenTimer.SetElapsed(deviceInfoPlugin.tokenExpire , 0)
+	
+	deviceInfoPlugin.tokenTimer.Start()
+	
 
     '----- Create Message Port and Set Timer
     
@@ -60,10 +76,14 @@ Function deviceInfoPlugin_ProcessEvent(event as Object)
 	
 	if type(event) = "roTimerEvent" then
 		if event.GetUserData() <> invalid then
+			if event.GetUserData() = "GET_TOKEN" then
+				print "@deviceInfoPlugin Getting Token..."
+				GetToken(m)
+				retval = true
+			end if
 			if event.GetUserData() = "SEND_DEVICEINFO" then
 			    print "@deviceInfoPlugin Sending Device Info..."
-                GetToken()
-				success = SendDeviceInfo(m)
+                success = SendDeviceInfo(m)
 				retval = success
 			end if
 		end if
@@ -101,29 +121,35 @@ Function newDeviceInfo(userVariables As Object)
 
 End Function
 
-Function GetToken()
-{
+Function GetToken(h as Object)
+
+	tokenUrl=""
+	
+	if h.userVariables["token_url"]<>invalid
+	    tokenUrl = h.userVariables["token_url"].currentValue$
+    end if
+	
     xfer = CreateObject("roUrlTransfer") 
     msgPort = CreateObject("roMessagePort")
 
     xfer.SetPort(msgPort)
     xfer.SetUserData("TOKEN_REQUESTED")
-    xfer.SetURL(token_url)
+    xfer.SetURL(tokenUrl)
     xfer.AddHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
 
     aa = {}
 	aa.method = "POST"
-	aa.request_body_string =  xfer.Escape("grant_type=password&username=&password=")
+	aa.request_body_string =  "grant_type=password&username=sabin.maharjan@portofportland.com&password=QV4f!@1882"
 	aa.response_body_string = true
 
-    STOP
     ok = xfer.AsyncMethod(aa)
 
+	gotResult = false
+	reason = "Unknown"
+	responseCode = 0
+	responseBody = ""
+	
     if ok then 
-
-        gotResult = false
-        reason = "Unknown"
-        responseCode = 0
 
         while gotResult = false
             msg = wait(0, msgPort)
@@ -132,12 +158,25 @@ Function GetToken()
                     gotResult = true
                     reason = msg.GetFailureReason()
                     responseCode = msg.GetResponseCode()
+					responseBody = msg
                 end if
             end if
         end while
+		
     end if
-
-}
+	
+	if responseCode = 200 then
+		print "@deviceInfoPlugin  Token Granted Successfully"
+		
+		jsonObj = ParseJson(responseBody)
+		
+		h.tokenExpire = jsonObj.expires_in
+		h.token = jsonObj.token_type + " " + jsonObj.access_token
+	else
+		print "@deviceInfoPlugin  Token Not Granted! Response : "; reason
+	end if
+	
+End Function
 
 Function SendDeviceInfo(h as Object) as Object
 	
@@ -174,6 +213,7 @@ Function SendDeviceInfo(h as Object) as Object
 		xfer.SetUserData("DEVICEINFO_UPLOADED")
 		xfer.SetURL(DeviceInfo_url)
         xfer.AddHeader("Content-Type", "application/json")
+		xfer.AddHeader("Authorization", h.token)
 		
 		dataInfo = FormatJson(info)
 		
