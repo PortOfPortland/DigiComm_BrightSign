@@ -3,7 +3,7 @@ REM @title               Device Information Uploader
 REM @author              Sabin Maharjan
 REM @company	         Port Of Portland
 REM @date-created        04/21/2017
-REM @date-last-modified  04/26/2017
+REM @date-last-modified  05/05/2017
 REM
 REM @description         Uploads Device Information Periodically Given the User Variable time value
 REM
@@ -62,6 +62,7 @@ Function deviceInfoPlugin_ProcessEvent(event as Object)
 		if event.GetUserData() <> invalid then
 			if event.GetUserData() = "SEND_DEVICEINFO" then
 			    print "@deviceInfoPlugin Sending Device Info..."
+                GetToken()
 				success = SendDeviceInfo(m)
 				retval = success
 			end if
@@ -99,6 +100,44 @@ Function newDeviceInfo(userVariables As Object)
     return deviceInfo
 
 End Function
+
+Function GetToken()
+{
+    xfer = CreateObject("roUrlTransfer") 
+    msgPort = CreateObject("roMessagePort")
+
+    xfer.SetPort(msgPort)
+    xfer.SetUserData("TOKEN_REQUESTED")
+    xfer.SetURL(token_url)
+    xfer.AddHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
+
+    aa = {}
+	aa.method = "POST"
+	aa.request_body_string =  xfer.Escape("grant_type=password&username=&password=")
+	aa.response_body_string = true
+
+    STOP
+    ok = xfer.AsyncMethod(aa)
+
+    if ok then 
+
+        gotResult = false
+        reason = "Unknown"
+        responseCode = 0
+
+        while gotResult = false
+            msg = wait(0, msgPort)
+            if type(msg) = "roUrlEvent" then
+                if msg.GetUserData() = "TOKEN_REQUESTED"
+                    gotResult = true
+                    reason = msg.GetFailureReason()
+                    responseCode = msg.GetResponseCode()
+                end if
+            end if
+        end while
+    end if
+
+}
 
 Function SendDeviceInfo(h as Object) as Object
 	
