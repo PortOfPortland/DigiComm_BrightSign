@@ -54,7 +54,7 @@ Function snapshotUploaderPlugin_Initialize(msgPort As Object, userVariables As O
 	
 	snapshotUploaderPlugin.tokenTimer.SetPort(snapshotUploaderPlugin.msgPort)
 	
-	snapshotUploaderPlugin.tokenTimer.SetUserData("GET_TOKEN")
+	snapshotUploaderPlugin.tokenTimer.SetUserData("GET_ACCESS_TOKEN")
 	
 	snapshotUploaderPlugin.tokenTimer.SetElapsed(snapshotUploaderPlugin.tokenExpire , 0)
 	
@@ -71,8 +71,9 @@ Function snapshotUploaderPlugin_ProcessEvent(event as Object)
 	
 	if type(event) = "roTimerEvent" then
 		if event.GetUserData() <> invalid then
-			if event.GetUserData() = "GET_TOKEN" then
+			if event.GetUserData() = "GET_ACCESS_TOKEN" then
 				print "@snapshotUploaderPlugin Getting Token..."
+				STOP
 				GetAccessToken(m)
 				retval = true
 			end if
@@ -119,8 +120,8 @@ Function snapshotUploaderPlugin_ProcessEvent(event as Object)
 						xfr.AddHeader("Content-Length", stri(fileSize))
 						xfr.AddHeader("Content-Type", "image/jpeg")
 						xfr.AddHeader("unitName", unitName)
-						xfer.AddHeader("Authorization", h.token)
-						STOP
+						xfr.AddHeader("Authorization", m.token)
+						
                         ok = xfr.AsyncPostFromFile(filePath)
 						
 						if ok = false then 
@@ -190,7 +191,7 @@ Function GetAccessToken(h as Object)
     msgPort = CreateObject("roMessagePort")
 
     xfer.SetPort(msgPort)
-    xfer.SetUserData("TOKEN_REQUESTED")
+    xfer.SetUserData("ACCESS_TOKEN_REQUESTED")
     xfer.SetURL(tokenUrl)
     xfer.AddHeader("Content-Type", "application/x-www-form-urlencoded; charset=utf-8")
 
@@ -211,7 +212,7 @@ Function GetAccessToken(h as Object)
         while gotResult = false
             msg = wait(0, msgPort)
             if type(msg) = "roUrlEvent" then
-                if msg.GetUserData() = "TOKEN_REQUESTED"
+                if msg.GetUserData() = "ACCESS_TOKEN_REQUESTED"
                     gotResult = true
                     reason = msg.GetFailureReason()
                     responseCode = msg.GetResponseCode()
@@ -223,7 +224,7 @@ Function GetAccessToken(h as Object)
     end if
 	
 	if responseCode = 200 then
-		print "@deviceInfoPlugin  Token Granted Successfully"
+		print "@snapshotUploaderPlugin  Token Granted Successfully"
 		
 		jsonObj = ParseJson(responseBody)
 		
@@ -231,7 +232,7 @@ Function GetAccessToken(h as Object)
 		h.tokenTimer.SetElapsed(jsonObj.expires_in, 0)
 		h.token = jsonObj.token_type + " " + jsonObj.access_token
 	else
-		print "@deviceInfoPlugin  Token Not Granted! Response : "; reason
+		print "@snapshotUploaderPlugin  Token Not Granted! Response : "; reason
 	end if
 	
 End Function
