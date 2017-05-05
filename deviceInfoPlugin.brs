@@ -124,8 +124,19 @@ Function GetToken(h as Object)
 
 	tokenUrl=""
 	
+	username = ""
+	password = ""
+	
 	if h.userVariables["token_url"]<>invalid
 	    tokenUrl = h.userVariables["token_url"].currentValue$
+    end if
+	
+	if h.userVariables["token_user"]<>invalid
+	    username = h.userVariables["token_user"].currentValue$
+    end if
+	
+	if h.userVariables["token_password"]<>invalid
+	    password = h.userVariables["token_password"].currentValue$
     end if
 	
     xfer = CreateObject("roUrlTransfer") 
@@ -138,7 +149,7 @@ Function GetToken(h as Object)
 
     aa = {}
 	aa.method = "POST"
-	aa.request_body_string =  "grant_type=password&username=&password="
+	aa.request_body_string =  "grant_type=password&username=" + username + "&password=" + password
 	aa.response_body_string = true
 
     ok = xfer.AsyncMethod(aa)
