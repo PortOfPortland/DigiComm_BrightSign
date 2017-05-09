@@ -73,7 +73,6 @@ Function snapshotUploaderPlugin_ProcessEvent(event as Object)
 		if event.GetUserData() <> invalid then
 			if event.GetUserData() = "GET_ACCESS_TOKEN" then
 				print "@snapshotUploaderPlugin Getting Token..."
-				STOP
 				GetAccessToken(m)
 				retval = true
 			end if
